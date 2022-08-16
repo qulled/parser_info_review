@@ -51,12 +51,12 @@ def get_feedback(rootId, last_day, needed_valuation=None):
     for items in response_message["feedbacks"]:
         date = items["createdDate"][:10].replace("T", " ")
         if int(items["productValuation"]) != needed_valuation or not needed_valuation:
-            if date in last_day:
-                # print(items['nmId'])
-                if items['nmId'] not in dict_article:
-                    dict_article[items['nmId']] = {'review' : 1, 'supplierArticle': items['productDetails']['supplierArticle']}
-                else:
-                    dict_article[items['nmId']]['review']+=1
+            try:
+                if date in last_day and items['text'] not in dict_article[items['nmId']]['text']:
+                        dict_article[items['nmId']]['review']+=1
+                        dict_article[items['nmId']]['text'].append(items['text'])
+            except:
+                pass
     return dict_article
 
 
@@ -74,8 +74,8 @@ def search_rootId(imtId):
     return rootId
 
 
-def get_list_articles(table_id, month, year):
-    list_article = []
+def get_dict_articles(table_id, month, year):
+    dict_article = {}
     service = build('sheets', 'v4', credentials=credentials)
     sheet = service.spreadsheets()
     result = sheet.values().get(spreadsheetId=table_id,
@@ -87,21 +87,22 @@ def get_list_articles(table_id, month, year):
         else:
             for row in values[2:]:
                 if row[2] == 'ТОП 10 уже' or row[2] == 'ТОП 5 продвижение':
-                    list_article.append(row[6])
+                    dict_article[int(row[6])] = {'review':0,'supplierArticle':row[5],'text':[]}
     except:
         pass
-    return list_article
+    with open(f'article_dicts.json', 'w', encoding='UTF-8') as outfile:
+        json.dump(dict_article, outfile, ensure_ascii=False)
+    return dict_article
 
 
 if __name__ == "__main__":
-    dict_article = {}
     date = dt.datetime.now()
     month = date.strftime('%m')
     year = date.strftime('%Y')
     yesterday = str(dt.datetime.date(dt.datetime.now()) - dt.timedelta(days=1))
     table_id = SPREADSHEET_ID
-    articles = get_list_articles(table_id,month,year)
-    for article in articles:
+    dict_article = get_dict_articles(table_id,month,year)
+    for article in dict_article:
         get_feedback(search_rootId(int(article)),yesterday)
     with open(f'article_dicts.json', 'w', encoding='UTF-8') as outfile:
         json.dump(dict_article, outfile, ensure_ascii=False)

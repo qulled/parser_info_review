@@ -133,6 +133,8 @@ def update_table_review(table_id, article_dicts):
                 article_WB = values[1].strip().upper()
                 if article_WB != 'Итого за день':
                     value = article_dicts.get(article_WB)['review']
+                    if value == 0:
+                        value = ''
                     body_data += [
                         {'range': f'{range_name}!{convert_to_column_letter(column)}{row}',
                          'values': [[f'{value}']]}]
