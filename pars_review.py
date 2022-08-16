@@ -42,7 +42,6 @@ load_dotenv('.env ')
 SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
 
 def get_feedback(rootId, last_day, needed_valuation=None):
-    count = 0
     raw_data = {"imtId": rootId, "skip": 0, "take": 30, "order": "dateDesc"}
     url = "https://public-feedbacks.wildberries.ru/api/v1/summary/full"
     response = requests.post(
@@ -50,12 +49,15 @@ def get_feedback(rootId, last_day, needed_valuation=None):
     )
     response_message = response.json()
     for items in response_message["feedbacks"]:
-        # print(items)
         date = items["createdDate"][:10].replace("T", " ")
         if int(items["productValuation"]) != needed_valuation or not needed_valuation:
             if date in last_day:
-                count+=1
-    return count
+                # print(items['nmId'])
+                if items['nmId'] not in dict_article:
+                    dict_article[items['nmId']] = {'review' : 1, 'supplierArticle': items['productDetails']['supplierArticle']}
+                else:
+                    dict_article[items['nmId']]['review']+=1
+    return dict_article
 
 
 def search_rootId(imtId):
@@ -92,8 +94,14 @@ def get_list_articles(table_id, month, year):
 
 
 if __name__ == "__main__":
-    last_day = str(dt.datetime.date(dt.datetime.now()) - dt.timedelta(days=1))
+    dict_article = {}
+    date = dt.datetime.now()
+    month = date.strftime('%m')
+    year = date.strftime('%Y')
+    yesterday = str(dt.datetime.date(dt.datetime.now()) - dt.timedelta(days=1))
     table_id = SPREADSHEET_ID
-    get_list_articles(table_id)
-    spisok = get_feedback(search_rootId(83818558),last_day)
-    print(spisok)
+    articles = get_list_articles(table_id,month,year)
+    for article in articles:
+        get_feedback(search_rootId(int(article)),yesterday)
+    with open(f'article_dicts.json', 'w', encoding='UTF-8') as outfile:
+        json.dump(dict_article, outfile, ensure_ascii=False)
